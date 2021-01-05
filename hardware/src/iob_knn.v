@@ -30,11 +30,22 @@ module iob_knn
    //BLOCK 64-bit time counter & Free-running 64-bit counter with enable and soft reset capabilities
    //
    `SIGNAL_OUT(KNN_VALUE, 2*DATA_W)
+   
    knn_core knn0
      (
       .KNN_ENABLE(KNN_ENABLE),
       .clk(clk),
-      .rst(rst_int)
+      .rst(rst_int),
+      .Ax(KNN_Ax),
+      .Ay(KNN_Ay),
+      .Bx(KNN_Bx),
+      .By(KNN_By),
+      .label(KNN_LABEL),
+      .writereg(KNN_PIP),
+      .acesso(KNN_acesso[3:0]),
+      .Out(KNN_Out),
+      .Dist(KNN_Dist),
+      .Out2(KNN_Out2)
       );
    
    

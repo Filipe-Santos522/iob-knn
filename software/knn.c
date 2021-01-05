@@ -3,6 +3,7 @@
 #include <iob-uart.h>
 #include "iob_timer.h"
 #include "iob_knn.h"
+#include <stdint.h>
 #include "random.h" //random generator for bare metal
 
 //uncomment to use rand from C lib 
@@ -35,51 +36,14 @@ struct datum {
   unsigned char label;
 } data[N], x[M];
 
-//neighbor info
-struct neighbor {
-  unsigned int idx; //index in dataset array
-  unsigned int dist; //distance to test point
-} neighbor[K];
-
-//
-//Functions
-//
-
-//square distance between 2 points a and b
-unsigned int sq_dist( struct datum a, struct datum b) {
-  short X = a.x-b.x;
-  unsigned int X2=X*X;
-  short Y = a.y-b.y;
-  unsigned int Y2=Y*Y;
-  return (X2 + Y2);
-}
-
-//insert element in ordered array of neighbours
-void insert (struct neighbor element, unsigned int position) {
-  for (int j=K-1; j>position; j--)
-    neighbor[j] = neighbor[j-1];
-
-  neighbor[position] = element;
-
-}
-
 
 ///////////////////////////////////////////////////////////////////
 int main() {
-
   unsigned long long elapsed;
   unsigned int elapsedu;
 
-  //init uart and timer
+  //init uart
   uart_init(UART_BASE, FREQ/BAUD);
-  uart_printf("\nInit timer\n");
-  uart_txwait();
-
-  timer_init(TIMER_BASE);
-  //read current timer count, compute elapsed time
-  //elapsed  = timer_get_count();
-  //elapsedu = timer_time_us();
-
 
   //int vote accumulator
   int votes_acc[C] = {0};
@@ -89,7 +53,6 @@ int main() {
 
   //init dataset
   for (int i=0; i<N; i++) {
-
     //init coordinates
     data[i].x = (short) cmwc_rand();
     data[i].y = (short) cmwc_rand();
@@ -124,40 +87,34 @@ int main() {
   //
 
   //start knn here
-  
+  uart_printf("\nInit timer\n");
+  uart_txwait();
+
+  timer_init(TIMER_BASE);
+  knn_init(KNN_BASE);
+
+
   for (int k=0; k<M; k++) { //for all test points
   //compute distances to dataset points
+  knn_reset();
 
 #ifdef DEBUG
     uart_printf("\n\nProcessing x[%d]:\n", k);
-#endif
-
-    //init all k neighbors infinite distance
-    for (int j=0; j<K; j++)
-      neighbor[j].dist = INFINITE;
-
-#ifdef DEBUG
     uart_printf("Datum \tX \tY \tLabel \tDistance\n");
 #endif
-    for (int i=0; i<N; i++) { //for all dataset points
-      //compute distance to x[k]
-      unsigned int d = sq_dist(x[k], data[i]);
 
-      //insert in ordered list
-      for (int j=0; j<K; j++)
-        if ( d < neighbor[j].dist ) {
-          insert( (struct neighbor){i,d}, j);
-          break;
-        }
+    knn_start();
+    put_testpoint(x[k].x, x[k].y);
+    unsigned int d=0;
+    for (int i=0; i<N; i++) {
+	put_datapoint(data[i].x, data[i].y, data[i].label);
 
-#ifdef DEBUG
-      //dataset
-      uart_printf("%d \t%d \t%d \t%d \t%d\n", i, data[i].x, data[i].y, data[i].label, d);
-#endif
-
+	#ifdef DEBUG
+	d=take_Distance();
+        //dataset
+        uart_printf("%d \t%d \t%d \t%d \t%d\n", i, data[i].x, data[i].y, data[i].label, d);
+	#endif
     }
-
-    
     //classify test point
 
     //clear all votes
@@ -167,8 +124,8 @@ int main() {
 
     //make neighbours vote
     for (int j=0; j<K; j++) { //for all neighbors
-      if ( (++votes[data[neighbor[j].idx].label]) > best_votation ) {
-        best_voted = data[neighbor[j].idx].label;
+      if ( (++votes[knn_read(j)]) > best_votation ) {
+        best_voted = knn_read(j);
         best_votation = votes[best_voted];
       }
     }
@@ -179,9 +136,9 @@ int main() {
     
 #ifdef DEBUG
     uart_printf("\n\nNEIGHBORS of x[%d]=(%d, %d):\n", k, x[k].x, x[k].y);
-    uart_printf("K \tIdx \tX \tY \tDist \t\tLabel\n");
+    uart_printf("K \tDist \t\tLabel\n");
     for (int j=0; j<K; j++)
-      uart_printf("%d \t%d \t%d \t%d \t%d \t%d\n", j+1, neighbor[j].idx, data[neighbor[j].idx].x,  data[neighbor[j].idx].y, neighbor[j].dist,  data[neighbor[j].idx].label);
+      uart_printf("%d \t%d \t%d\n", j+1, knn_read2(j),  knn_read(j));
     
     uart_printf("\n\nCLASSIFICATION of x[%d]:\n", k);
     uart_printf("X \tY \tLabel\n");
@@ -198,10 +155,11 @@ int main() {
 
   
   //print classification distribution to check for statistical bias
-  for (int l=0; l<C; l++)
+  for (int l=0; l<C; l++){
     uart_printf("%d ", votes_acc[l]);
   uart_printf("\n");
   
+}
 }
 
 

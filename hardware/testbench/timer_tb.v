@@ -11,6 +11,12 @@ module knn_tb;
 
    `SIGNAL(KNN_ENABLE, 1)
    `SIGNAL(KNN_SAMPLE, 1)
+   `SIGNAL_SIGNED(Ax, 16)
+   `SIGNAL_SIGNED(By, 16)
+   `SIGNAL_SIGNED(Ay, 16)
+   `SIGNAL_SIGNED(By, 16)
+   `SIGNAL(Fin, 32)
+   `SIGNAL(label, 8)
    `SIGNAL_OUT(KNN_VALUE, 2*`DATA_W)
    
    initial begin
@@ -50,7 +56,14 @@ module knn_tb;
       .KNN_SAMPLE(KNN_SAMPLE),
       .KNN_VALUE(KNN_VALUE),
       .clk(clk),
-      .rst(rst)
+      .rst(rst),
+      .Ax(KNN_Ax),
+      .Bx(KNN_Bx),
+      .Ay(KNN_Ay),
+      .By(KNN_By),
+      .Out(Reg_out1),
+      .label(label),
+      .Dist(KNN_Dist)
       );   
 
 endmodule
